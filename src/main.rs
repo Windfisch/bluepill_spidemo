@@ -10,6 +10,8 @@ use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
 use stm32f1xx_hal::{pac, prelude::*, timer::Timer, spi};
 
+static spi_bytes: [u8; 9] = [42, 1, 2, 3, 4, 5, 6, 7, 8];
+
 #[entry]
 fn main() -> ! {
 	let cp = cortex_m::Peripherals::take().unwrap();
@@ -34,9 +36,14 @@ fn main() -> ! {
 	let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 	let mut timer = Timer::syst(cp.SYST, &clocks).start_count_down(1.hz());
 
-	let mut spi_bytes = [42, 1, 2, 3, 4, 5, 6, 7, 8];
+	let dma = dp.DMA1.split(&mut rcc.ahb);
+	let spi_dma = spi.with_tx_dma(dma.3);
+
 	trigger.set_low().unwrap();
-	spi.transfer(&mut spi_bytes).unwrap();
+	let fnord = spi_dma.write(&spi_bytes);
+	trigger.set_high().unwrap();
+	fnord.wait();
+	trigger.set_low().unwrap();
 	trigger.set_high().unwrap();
 
 	loop {
