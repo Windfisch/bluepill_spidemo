@@ -7,9 +7,9 @@ debug.bin:
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/debug/bluepill_spidemo $@
 
 flash.%: %.bin
-	stm32flash /dev/ttyUSB5 -b115200 -w $<
+	stm32flash /dev/ttyUSB0 -b115200 -w $<
 
 .PHONY: release.bin debug.bin
 
 tty:
-	python /usr/lib/python3.9/site-packages/serial/tools/miniterm.py /dev/ttyUSB5 115200
+	python /usr/lib/python3.9/site-packages/serial/tools/miniterm.py /dev/ttyUSB0 115200

@@ -15,5 +15,5 @@ cortex-m-rt = "0.6.11"
 panic-halt = "0.2.0"
 
 [dependencies.stm32f1xx-hal]
-version = "0.6.1"
+path = "/home/flo/stm32f1xx-hal"
 features = ["rt", "stm32f103", "medium"]
