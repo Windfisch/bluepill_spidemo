@@ -54,7 +54,9 @@ fn main() -> ! {
 	trigger.set_low().unwrap();
 	trigger.set_high().unwrap();
 
-	spi_dma.read_write(unsafe { &mut IN2 }, &OUT).wait();
+	let dronf = spi_dma.read_write(unsafe { &mut IN2 }, unsafe { &IN });
+	dronf.peek();
+	dronf.wait();
 
 	writeln!(tx, "IN is {:?}", unsafe{IN}).unwrap();
 	let first = unsafe{IN[0]};
