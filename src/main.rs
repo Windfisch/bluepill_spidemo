@@ -13,7 +13,7 @@ use core::fmt::Write;
 
 static mut IN: [u8; 9] = [0; 9];
 static mut IN2: [u8; 9] = [0; 9];
-static OUT: [u8; 9] = [42, 1, 2, 3, 4, 5, 6, 7, 8];
+static mut OUT: [u8; 9] = [42, 1, 2, 3, 4, 5, 6, 7, 42];
 
 #[entry]
 fn main() -> ! {
@@ -29,7 +29,9 @@ fn main() -> ! {
 	let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
 	let mut gpioc = dp.GPIOC.split(&mut rcc.apb2);
 
-	let mut trigger = gpioa.pa4.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
+	let mut trigger = gpioa.pa4.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High); // for viewing with an oscilloscope
+	let mut strobe = gpioa.pa3.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High); // controls shift registers
+	let mut do_strobe = || { strobe.set_low(); strobe.set_high(); };
 	let clk = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
 	let miso = gpioa.pa6.into_floating_input(&mut gpioa.crl);
 	let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
@@ -48,7 +50,7 @@ fn main() -> ! {
 
 	trigger.set_low().unwrap();
 	let spi_dma = spi.with_rx_tx_dma(dma.2, dma.3);
-	let fnord = spi_dma.read_write(unsafe { &mut IN }, &OUT);
+	let fnord = spi_dma.read_write(unsafe { &mut IN }, unsafe {&OUT});
 	trigger.set_high().unwrap();
 	let (_,spi_dma) = fnord.wait();
 	trigger.set_low().unwrap();
@@ -56,7 +58,7 @@ fn main() -> ! {
 
 	let dronf = spi_dma.read_write(unsafe { &mut IN2 }, unsafe { &IN });
 	dronf.peek();
-	dronf.wait();
+	let (_, mut spi_dma) = dronf.wait();
 
 	writeln!(tx, "IN is {:?}", unsafe{IN}).unwrap();
 	let first = unsafe{IN[0]};
@@ -77,6 +79,17 @@ fn main() -> ! {
 
 	let mut timer = Timer::syst(cp.SYST, &clocks).start_count_down(if yay {1.hz()} else {3.hz()});
 	loop {
+		do_strobe();
+
+		let transfer = spi_dma.read_write(unsafe { &mut IN }, unsafe{&OUT});
+		let (_, spi_dma_ret) = transfer.wait();
+		spi_dma = spi_dma_ret;
+
+		writeln!(tx, "Hi! sent {:?}, received {:?}", unsafe{OUT}, unsafe{IN}).unwrap();
+		unsafe{
+			OUT[8] = OUT[8].wrapping_add(1);
+		}
+
 		block!(timer.wait()).unwrap();
 		led.set_high().unwrap();
 		block!(timer.wait()).unwrap();
